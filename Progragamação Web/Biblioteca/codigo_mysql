@@ -1,0 +1,41 @@
+CREATE TABLE Secao(
+    codigo_secao INT AUTO_INCREMENT,
+    genenero_secao VARCHAR(30) NOT NULL,
+    PRIMARY KEY(codigo_secao)
+);
+
+CREATE TABLE Prateleira(
+	codigo_prateleira INT AUTO_INCREMENT,
+	codigo_secao INT NOT NULL,
+	total_livros INT NOT NULL,
+	PRIMARY KEY(codigo_prateleira),
+	FOREIGN KEY(codigo_prateleira) REFERENCES Prateleira(codigo_prateleira)
+);
+
+CREATE TABLE Autor(
+	id_autor INT AUTO_INCREMENT,
+	nome_autor VARCHAR(25) NOT NULL,
+	PRIMARY KEY(id_autor)
+);
+
+CREATE TABLE Livro(
+    codigo_livro INT AUTO_INCREMENT,
+    titulo_livro VARCHAR(50) NOT NULL,
+    nome_autor VARCHAR(25) NOT NULL,
+    id_autor INT NOT NULL,
+    codigo_prateleira INT NOT NULL,
+    codigo_secao INT NOT NULL,
+    PRIMARY KEY(codigo_livro),
+    FOREIGN KEY(id_autor) REFERENCES Autor(id_autor),
+    FOREIGN KEY(codigo_prateleira) REFERENCES Prateleira(codigo_prateleira),
+    FOREIGN KEY(codigo_secao) REFERENCES Secao(codigo_secao)
+);
+
+CREATE TABLE Usuario (
+    id_usuario INT AUTO_INCREMENT,
+    nome_usuario VARCHAR(100) NOT NULL,
+    login_usuario VARCHAR(50) NOT NULL,
+    senha_usuario VARCHAR(100) NOT NULL,
+    PRIMARY KEY(id_usuario)
+);
+

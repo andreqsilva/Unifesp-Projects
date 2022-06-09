@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+	<title> Tabela mesclada </title>
+</head>
+<body>
+	<table border="1">
+		<caption> Exemplo de Tabela </caption>
+		<tr>
+			<th> Título 1 </th>
+			<th> Título 2 </th>
+			<th> Título 3 </th>
+			<th> Título 4 </th>
+		</tr>
+		<tr>
+			<td> Conteúdo 1 </td>
+			<td> Conteúdo 2 </td>
+			<td> Conteúdo 3 </td>
+			<td rowspan="2"> Conteúdo 4 </td> <!-- mescla 2 colunas --> 
+		</tr>
+		<tr>
+			<td> Conteúdo 5 </td>
+			<td> Conteúdo 6 </td>
+			<td> Conteúdo 7 </td>
+		</tr>
+		<tr>
+			<td> Conteúdo 8 </td>
+			<td colspan="2"> Conteúdo 9 </td> <!-- mescla 2 linhas -->
+			<td> Conteúdo 10 </td>
+		</tr>
+		<tr>
+			<td colspan="3"> Conteúdo 11 </td>
+			<td> Conteúdo 12 </td>
+		</tr>
+	</table>
+</body>
+</html>

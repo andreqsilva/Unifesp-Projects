@@ -1,0 +1,14 @@
+. Estrutura básica de um documento HTML
+
+<!DOCTYPE html>
+<html> 
+	<head> 
+		<title> Título da página </title>
+	</head>
+	<body> 
+		<h1> Título: Introdução ao HTML </h1>
+		<h2> Subtítulo: Estrutura básica </h2>
+		<p> Este é o primeiro parágrafo. </p>
+		<p> Este é o segundo parágrafo. </p>
+	</body>
+</html>

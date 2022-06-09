@@ -1,0 +1,3 @@
+2. A classe em questão poderia ser instanciada e o método move nao poderia ser declarado como abstract.
+
+3. Classe abstratas não podem ser instanciadas porque servem apenas de modelo para que suas classes filho possam ser mais especializadas.

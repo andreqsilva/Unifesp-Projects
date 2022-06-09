@@ -1,0 +1,17 @@
+O site serve como uma ferramenta online parar auxiliar bibliotecas, informando dados a respeito dos livros cadastrados no sistema, sendo eles:
+  - Título
+  - Nome do autor
+  - Gênero
+  - Prateleira que o livro se encontra
+  
+Na Tela Inicial há a listagem de todos os livros cadastrados, mas o site traz uma ferramenta de filtagem, permitindo que sejam feitas buscas por título, nome do autor e gênero.
+  
+Além de mostrar informações, o site também permite o cadastro e remoção dos livros. 
+
+Os testes podem ser realizados pelo usuario abaixo, mas sinta-se livre para criar uma conta.
+
+--------------------
+usuario: usuario123
+senha: 123
+--------------------
+

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<link rel="stylesheet" href="estilo.css">
+	<title>Formulário de Contato</title>
+	
+	<style>
+	
+	input[type=text], select {
+ 		width: 100%;
+  		padding: 12px 20px;
+  		margin: 8px 0;
+  		display: inline-block;
+  		border: 1px solid #ccc;
+  		border-radius: 12px;
+  		box-sizing: border-box;
+	}
+	
+	input[type=tel], select {
+ 		width: 100%;
+  		padding: 12px 20px;
+  		margin: 8px 0;
+  		display: inline-block;
+  		border: 1px solid #ccc;
+  		border-radius: 12px;
+  		box-sizing: border-box;
+	}
+	
+	input[type=email], select {
+ 		width: 100%;
+  		padding: 12px 20px;
+  		margin: 8px 0;
+  		display: inline-block;
+  		border: 1px solid #ccc;
+  		border-radius: 12px;
+  		box-sizing: border-box;
+	}
+	
+	input[type=email], select {
+ 		width: 100%;
+  		padding: 12px 20px;
+  		margin: 8px 0;
+  		display: inline-block;
+  		border: 1px solid #ccc;
+  		border-radius: 12px;
+  		box-sizing: border-box;
+	}
+	
+	input[type=url], select {
+ 		width: 100%;
+  		padding: 12px 20px;
+  		margin: 8px 0;
+  		display: inline-block;
+  		border: 1px solid #ccc;
+  		border-radius: 12px;
+  		box-sizing: border-box;
+	}
+
+	input[type=submit] {
+		width: 100%;
+		background-color: #4CAF50;
+	  	color: white;
+	  	padding: 14px 20px;
+	  	margin: 8px 0;
+	  	border: none;
+	  	border-radius: 12px;
+	  	cursor: pointer;
+	}
+	
+	input[type=date], select {
+ 		width: 100%;
+  		padding: 12px 20px;
+  		margin: 8px 0;
+  		display: inline-block;
+  		border: 1px solid #ccc;
+  		border-radius: 12px;
+  		box-sizing: border-box;
+	}
+	
+	div {
+		border-radius: 10px;
+		background-color: lightgray;
+		padding: 20px; 
+	}
+	
+	#titulo {
+		background-color: #4CAF50;
+		padding: 20px;
+		color: white;
+		border-radius: 12px;
+	}
+	
+	</style>
+</head>
+<body>
+	<h1 id="titulo">Formulário de Contato</h1>
+	<div>
+	<form action="https://ezequielzorzal.com/testform.php" method="post">
+		<label for="fname">Nome: </label>
+		<input type="text" id="name" name="fname" size="50">
+		<label for="fadress">Endereço:</label>
+		<input type="text" id="adress" name="fadress" placeholder="Rua, número" size="20">
+		<label for="fbairro">Bairro: </label>
+		<input type="text" id="bairro" name="fbairro" placeholder="Eugênio de Melo">
+		<label for="fcity">Cidade:</label>
+		<input type="text" id="city" name="fcity" placeholder="São José dos Campos" size="15">
+		<label for="fstate">Estado: </label>
+		<input type="text" id="state" name="fstate" size="2" placeholder="SP" pattern="[A-Z]{2}" maxlength="2" title="Estado">
+		<label for="fcep">CEP: </label>
+		<input type="text" id="cep" name="fcep" size="10" placeholder="12000-011" pattern="[0-9]{5}-[0-9]{3}" title="CEP">
+		<label for="fphone">Telefone: </label>
+		<input type="tel" id="phone" name="fphone" placeholder="(12)1234-5678" title="telefone">
+		<label for="femail">E-mail: </label>
+		<input type="email" id="email" name="femail" placeholder="exemplo@email.com" pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$" title="email">
+		<label for="fsite">Site: </label>
+		<input type="url" id="url" name="fsite" placeholder="https://www.site.com.br" title="site">
+		<label for="fborn">Nascimento: </label>
+		<input type="date" id="date" name="fborn">
+		
+		<fieldset>
+			<legend>Possui Newsletter?</legend>
+			<label for="newsletter">Escolha uma opção:</label>
+			<select id="newsletter" name="newsletter">
+				<option value="sim" selected>Sim</option>
+				<option value="não">Não</option>
+			</select>
+		</fieldset>
+		
+		<label for="assunto">Assunto: </label>
+		<input type="text" id="subject"name="assunto">
+		<p>
+			<textarea name="mensagem" rows="5" cols="40" placeholder="Digite sua mensagem aqui"></textarea>
+		</p>
+		
+		<input type="submit" value="Enviar">
+	</form> </div>
+</body>
+</html>
