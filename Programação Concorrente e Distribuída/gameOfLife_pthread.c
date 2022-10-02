@@ -1,34 +1,22 @@
-/* Codigo serial */
-
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <pthread.h>
+#include <unistd.h>
 
 #define RED "\x1b[31m"
 #define BLUE "\x1b[34m"
 #define RESET "\x1b[0m"
 
 #define N 2048  // tamanho da matriz
-#define G 2000  // número de gerações
+#define T 2   // número de threads
+#define G 100  // número de gerações
 
-/*
-  i-1,j-1 | i-1,j | i-1,j+1
-  -------------------------
-   i,j-1  |  i,j  |  i,j+1
-  -------------------------
-  i+1,j-1 | i+1,j | i+1,j+1
-*/
+int grid[N][N] = {{0}};
+int newgrid[N][N] = {{0}};
 
-int **matriz_create(int n) {
-  int i;
-  int **matriz = malloc(N * sizeof(int*));
-  for (i = 0; i < N; i++) {
-    matriz[i] = malloc(N * sizeof(int));
-  }
-  return matriz;
-}
+pthread_barrier_t barrier;
 
-void imprime(int **grid) {
+void imprime(int grid[N][N]) {
   int i = 0, j = 0;
   for (i = 0; i < N; i++) {
     for (j = 0; j < N; j++) {
@@ -46,7 +34,7 @@ void imprime(int **grid) {
   }
 }
 
-void zeros(int **grid) {
+void zeros(int grid[N][N]) {
   int i, j;
   for (i = 0; i < N; i++) {
     for (j = 0; j < N; j++) {
@@ -55,7 +43,7 @@ void zeros(int **grid) {
   }
 }
 
-void setInitGrid(int **grid) {
+void setInitGrid(int grid[N][N]) {
   int lin, col;
   zeros(grid);
   // GLIDER
@@ -75,7 +63,7 @@ void setInitGrid(int **grid) {
   grid[lin+2][col+1] = 1;
 }
 
-int get_neighbors_thiago(int **grid, int row, int column)
+int get_neighbors_thiago(int grid[N][N], int row, int column)
 {
   int border_limit = N - 1;
 
@@ -104,7 +92,7 @@ int get_neighbors_thiago(int **grid, int row, int column)
 }
 
 // NÃO TÁ FUNCIONANDO //
-int getNeighbors(int **grid, int i, int j) {
+int getNeighbors(int grid[N][N], int i, int j) {
   int neighbors = 0;
   int up, bottom, right, left, bottomRight, bottomLeft, upRight, upLeft;
 
@@ -181,7 +169,7 @@ int getNeighbors(int **grid, int i, int j) {
   return neighbors;
 }
 
-void updateNeighbors(int **grid, int **newgrid, int i, int j, int neighbors) {
+void updateNeighbors(int grid[N][N], int newgrid[N][N], int i, int j, int neighbors) {
   if (grid[i][j]) { // celula viva
     if (neighbors == 2 || neighbors == 3) newgrid[i][j] = 1;
     else newgrid[i][j] = 0;
@@ -191,52 +179,78 @@ void updateNeighbors(int **grid, int **newgrid, int i, int j, int neighbors) {
   }
 }
 
-int findLivingGenerations(int **grid, int **newgrid) {
+int findLivingGenerations(int grid[N][N], int newgrid[N][N], int *id) {
   int i, j, neighbors, livingGenerations = 0;
-  for (i = 0; i < N; i++) {
+  int pos = *id;
+  int q = N/T;
+  for (i = 0; i < q; i++) {
     for (j = 0; j < N; j++) {
-      neighbors = get_neighbors_thiago(grid, i, j);
-      updateNeighbors(grid, newgrid, i, j, neighbors);
-      if (newgrid[i][j]) livingGenerations++;
+      neighbors = get_neighbors_thiago(grid, pos, j);
+      updateNeighbors(grid, newgrid, pos, j, neighbors);
+      if (newgrid[pos][j]) livingGenerations++;
     }
+    pos += T;
   }
   return livingGenerations;
 }
 
-void runGenerations(int **grid, int **newgrid) {
-  int generation, i, neighbors, livingGenerations = 0;
+
+void *runGenerations(void *args) {
+  int generation, neighbors;
+  long livingGenerations;
+  int *id = (int*)args;
+
   for (generation = 0; generation < G; generation++) {
     livingGenerations = 0;
     if (generation%2 == 0) {
-      zeros(newgrid);
-      livingGenerations = findLivingGenerations(grid,newgrid);
-    }
-    else {
-      zeros(grid);
-      livingGenerations = findLivingGenerations(newgrid,grid);
+        if (*id == 0) zeros(newgrid); // dividr
+        pthread_barrier_wait(&barrier);
+        livingGenerations = findLivingGenerations(grid,newgrid,id);
+    } else {
+      if (*id == 0) zeros(grid); // dividir
+      pthread_barrier_wait(&barrier);
+      livingGenerations = findLivingGenerations(newgrid,grid,id);
     }
 
-    /*
-    printf("\n");
-     if (generation%2 == 0)
-       imprime(newgrid);
-     else{
-       imprime(grid);
-     }
-     */
-    printf("Geração %d: %d\n", generation+1, livingGenerations);
-
+      pthread_barrier_wait(&barrier);
   }
 
+  pthread_exit((void*)livingGenerations);
+  //pthread_exit(NULL);
 }
 
 int main(int argc, char **argv) {
-  int **grid = matriz_create(N);
-  int **newgrid = matriz_create(N);
+  pthread_t th[T];
+  int i, j, pos[T];
+  int rc;
+  void *result;
+  int livingGenerations = 0;
+
+  pthread_barrier_init(&barrier, NULL, T);
   setInitGrid(grid);
-  //imprime(grid);
-  runGenerations(grid, newgrid);
-  free(grid);
-  free(newgrid);
+
+  for (i = 0; i < T; i++) {
+    pos[i] = i;
+    rc = pthread_create(&th[i], NULL, &runGenerations, (void*)&pos[i]);
+    if (rc) {
+      printf("ERROR: create=%d\n", rc);
+      exit(-1);
+    }
+  }
+
+  for (i = 0; i < T; i++) {
+    rc = pthread_join(th[i], &result);
+    if (rc) {
+      printf("ERROR: join=%d\n", rc);
+      exit(-1);
+    }
+    livingGenerations += (long)result;
+    //printf("livingGenerations=%ld\n", (long)result);
+  }
+
+  printf("Gerações vivas = %d\n", livingGenerations);
+
+  pthread_barrier_destroy(&barrier);
+  pthread_exit(NULL);
   return 0;
 }
