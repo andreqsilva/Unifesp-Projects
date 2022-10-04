@@ -1,8 +1,6 @@
-/* Codigo serial */
-
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <omp.h>
 #include <unistd.h>
 
 #define RED "\x1b[31m"
@@ -10,26 +8,12 @@
 #define RESET "\x1b[0m"
 
 #define N 50  // tamanho da matriz
-#define G 1000  // número de gerações
+#define T 4   // número de threads
+#define G 100  // número de gerações
 
-/*
-  i-1,j-1 | i-1,j | i-1,j+1
-  -------------------------
-   i,j-1  |  i,j  |  i,j+1
-  -------------------------
-  i+1,j-1 | i+1,j | i+1,j+1
-*/
+pthread_barrier_t barrier;
 
-int **matriz_create(int n) {
-  int i;
-  int **matriz = malloc(N * sizeof(int*));
-  for (i = 0; i < N; i++) {
-    matriz[i] = malloc(N * sizeof(int));
-  }
-  return matriz;
-}
-
-void imprime(int **grid) {
+void imprime(int grid[N][N]) {
   int i = 0, j = 0;
   for (i = 0; i < N; i++) {
     for (j = 0; j < N; j++) {
@@ -47,7 +31,7 @@ void imprime(int **grid) {
   }
 }
 
-void zeros(int **grid) {
+void zeros(int grid[N][N]) {
   int i, j;
   for (i = 0; i < N; i++) {
     for (j = 0; j < N; j++) {
@@ -56,7 +40,7 @@ void zeros(int **grid) {
   }
 }
 
-void setInitGrid(int **grid) {
+void setInitGrid(int grid[N][N]) {
   int lin, col;
   zeros(grid);
   // GLIDER
@@ -76,7 +60,7 @@ void setInitGrid(int **grid) {
   grid[lin+2][col+1] = 1;
 }
 
-int get_neighbors_thiago(int **grid, int row, int column)
+int get_neighbors_thiago(int grid[N][N], int row, int column)
 {
   int border_limit = N - 1;
 
@@ -105,7 +89,7 @@ int get_neighbors_thiago(int **grid, int row, int column)
 }
 
 // NÃO TÁ FUNCIONANDO //
-int getNeighbors(int **grid, int i, int j) {
+int getNeighbors(int grid[N][N], int i, int j) {
   int neighbors = 0;
   int up, bottom, right, left, bottomRight, bottomLeft, upRight, upLeft;
 
@@ -182,7 +166,7 @@ int getNeighbors(int **grid, int i, int j) {
   return neighbors;
 }
 
-void updateNeighbors(int **grid, int **newgrid, int i, int j, int neighbors) {
+void updateNeighbors(int grid[N][N], int newgrid[N][N], int i, int j, int neighbors) {
   if (grid[i][j]) { // celula viva
     if (neighbors == 2 || neighbors == 3) newgrid[i][j] = 1;
     else newgrid[i][j] = 0;
@@ -192,52 +176,36 @@ void updateNeighbors(int **grid, int **newgrid, int i, int j, int neighbors) {
   }
 }
 
-int findLivingGenerations(int **grid, int **newgrid) {
-  int i, j, neighbors, livingGenerations = 0;
-  for (i = 0; i < N; i++) {
-    for (j = 0; j < N; j++) {
-      neighbors = get_neighbors_thiago(grid, i, j);
-      updateNeighbors(grid, newgrid, i, j, neighbors);
-      if (newgrid[i][j]) livingGenerations++;
-    }
-  }
-  return livingGenerations;
-}
-
-void runGenerations(int **grid, int **newgrid) {
-  int generation, i, neighbors, livingGenerations = 0;
-  for (generation = 0; generation < G; generation++) {
-    livingGenerations = 0;
-    if (generation%2 == 0) {
-      zeros(newgrid);
-      livingGenerations = findLivingGenerations(grid,newgrid);
-    }
-    else {
-      zeros(grid);
-      livingGenerations = findLivingGenerations(newgrid,grid);
-    }
-
-
-    printf("\n");
-    if (generation%2 == 0)
-      imprime(newgrid);
-    else{
-       imprime(grid);
-    }
-
-    printf("Geração %d: %d\n", generation+1, livingGenerations);
-    //sleep(1);
-  }
-
-}
-
 int main(int argc, char **argv) {
-  int **grid = matriz_create(N);
-  int **newgrid = matriz_create(N);
+  int i, j, neighbors, generation, id;
+  int livingGenerations = 0;
+  int q = N/T;
+
+  int grid[N][N] = {{0}};
+  int newgrid[N][N] = {{0}};
+
   setInitGrid(grid);
-  //imprime(grid);
-  runGenerations(grid, newgrid);
-  free(grid);
-  free(newgrid);
+
+  #pragma omp parallel num_threads(T) \
+    default(none) \
+    private(i, j, id, neighbors) \
+    shared(livingGenerations, grid, newgrid)
+  {
+    id = omp_get_thread_num();
+    printf("Thread[%d]\n", id);
+    #pragma omp for
+    for (i = 0; i < N; i++) {
+      printf("%d\n", i);
+      for (j = 0; j < N; j++) {
+        neighbors = get_neighbors_thiago(grid, id, j);
+        updateNeighbors(grid, newgrid, id, j, neighbors);
+        if (newgrid[id][j]) livingGenerations++;
+      }
+    }
+
+  }
+
+  printf("Gerações vivas = %d\n", livingGenerations);
+
   return 0;
 }

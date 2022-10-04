@@ -8,10 +8,10 @@
 #define RESET "\x1b[0m"
 
 #define N 2048  // tamanho da matriz
-#define T 2   // número de threads
-#define G 100  // número de gerações
+#define T  2  // número de threads
+#define G 2000  // número de gerações
 
-int grid[N][N] = {{0}};
+int [N][N] = {{0}};
 int newgrid[N][N] = {{0}};
 
 pthread_barrier_t barrier;
@@ -34,18 +34,27 @@ void imprime(int grid[N][N]) {
   }
 }
 
-void zeros(int grid[N][N]) {
+void zeros(int grid[N][N], int *id) {
   int i, j;
-  for (i = 0; i < N; i++) {
+  int pos = *id;
+  int q = N/T;
+  for (i = 0; i < q; i++) {
     for (j = 0; j < N; j++) {
-      grid[i][j] = 0;
+      grid[pos][j] = 0;
     }
+    pos += T;
   }
+
 }
 
 void setInitGrid(int grid[N][N]) {
   int lin, col;
-  zeros(grid);
+
+  for (lin = 0; lin < N; lin++) {
+    for (col = 0; col < N; col++) {
+      grid[lin][col] = 0;
+    }
+  }
   // GLIDER
   lin = 1, col = 1;
   grid[lin][col+1] = 1;
@@ -203,13 +212,13 @@ void *runGenerations(void *args) {
   for (generation = 0; generation < G; generation++) {
     livingGenerations = 0;
     if (generation%2 == 0) {
-        if (*id == 0) zeros(newgrid); // dividr
+        zeros(newgrid, id);
         pthread_barrier_wait(&barrier);
-        livingGenerations = findLivingGenerations(grid,newgrid,id);
+        livingGenerations = findLivingGenerations(grid, newgrid, id);
     } else {
-      if (*id == 0) zeros(grid); // dividir
+      zeros(grid, id);
       pthread_barrier_wait(&barrier);
-      livingGenerations = findLivingGenerations(newgrid,grid,id);
+      livingGenerations = findLivingGenerations(newgrid, grid, id);
     }
 
       pthread_barrier_wait(&barrier);
