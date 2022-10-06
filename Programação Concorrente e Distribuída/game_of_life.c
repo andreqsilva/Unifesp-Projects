@@ -1,24 +1,23 @@
-/* Codigo serial */
+/* Codigo serial
+
+  gcc game_of_life.c -o game_of_life
+
+*/
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/time.h>
+#include <time.h>
 
 #define RED "\x1b[31m"
 #define BLUE "\x1b[34m"
 #define RESET "\x1b[0m"
 
-#define N 50  // tamanho da matriz
-#define G 1000  // número de gerações
-
-/*
-  i-1,j-1 | i-1,j | i-1,j+1
-  -------------------------
-   i,j-1  |  i,j  |  i,j+1
-  -------------------------
-  i+1,j-1 | i+1,j | i+1,j+1
-*/
+#define V 0        // versão: game of live 0, high life 1
+#define N 2048     // tamanho da matriz
+#define G 2000     // número de gerações
 
 int **matriz_create(int n) {
   int i;
@@ -76,35 +75,6 @@ void setInitGrid(int **grid) {
   grid[lin+2][col+1] = 1;
 }
 
-int get_neighbors_thiago(int **grid, int row, int column)
-{
-  int border_limit = N - 1;
-
-  int row_up = row - 1;
-  int row_down = row + 1;
-  int column_left = column - 1;
-  int column_right = column + 1;
-
-  if(row_up < 0) row_up = border_limit;
-  if(row_down > border_limit) row_down = 0;
-  if(column_left < 0) column_left = border_limit;
-  if(column_right > border_limit) column_right = 0;
-
-  int neighbors = 0;
-
-  if(grid[row_up][column_left] == 1) neighbors++;
-  if(grid[row_up][column] == 1) neighbors++;
-  if(grid[row_up][column_right] == 1) neighbors++;
-  if(grid[row][column_right] == 1) neighbors++;
-  if(grid[row][column_left] == 1) neighbors++;
-  if(grid[row_down][column_left] == 1) neighbors++;
-  if(grid[row_down][column] == 1) neighbors++;
-  if(grid[row_down][column_right] == 1) neighbors++;
-
-  return neighbors;
-}
-
-// NÃO TÁ FUNCIONANDO //
 int getNeighbors(int **grid, int i, int j) {
   int neighbors = 0;
   int up, bottom, right, left, bottomRight, bottomLeft, upRight, upLeft;
@@ -139,7 +109,7 @@ int getNeighbors(int **grid, int i, int j) {
     if (j == 0) upLeft = grid[N-1][N-1];
     else upLeft = grid[N-1][j-1];
   } else {
-    if (j == 0) upLeft = grid[0][N-1];
+    if (j == 0) upLeft = grid[i-1][N-1];
     else upLeft = grid[i-1][j-1];
   }
 
@@ -161,15 +131,6 @@ int getNeighbors(int **grid, int i, int j) {
     else bottomLeft = grid[i+1][j-1];
   }
 
-  // up = grid[i-1][j];
-  // bottom = grid[i+1][j];
-  // right = grid[i][j+1];
-  // left = grid[i][j-1];
-  // upRight = grid[i-1][j+1];
-  // upLeft = grid[i-1][j-1];
-  // bottomRight = grid[i+1][j+1];
-  // bottomLeft = grid[i+1][j-1];
-
   if (up) neighbors++;
   if (bottom) neighbors++;
   if (right) neighbors++;
@@ -188,7 +149,11 @@ void updateNeighbors(int **grid, int **newgrid, int i, int j, int neighbors) {
     else newgrid[i][j] = 0;
   }
   else { //celula morta
-    if (neighbors == 3) newgrid[i][j] = 1;
+    if (V == 0) { // Game of life
+      if (neighbors == 3) newgrid[i][j] = 1;
+    } else if (V == 1) { // High life
+      if (neighbors == 3 || neighbors == 6) newgrid[i][j] = 1;
+    }
   }
 }
 
@@ -196,7 +161,7 @@ int findLivingGenerations(int **grid, int **newgrid) {
   int i, j, neighbors, livingGenerations = 0;
   for (i = 0; i < N; i++) {
     for (j = 0; j < N; j++) {
-      neighbors = get_neighbors_thiago(grid, i, j);
+      neighbors = getNeighbors(grid, i, j);
       updateNeighbors(grid, newgrid, i, j, neighbors);
       if (newgrid[i][j]) livingGenerations++;
     }
@@ -204,7 +169,7 @@ int findLivingGenerations(int **grid, int **newgrid) {
   return livingGenerations;
 }
 
-void runGenerations(int **grid, int **newgrid) {
+int runGenerations(int **grid, int **newgrid) {
   int generation, i, neighbors, livingGenerations = 0;
   for (generation = 0; generation < G; generation++) {
     livingGenerations = 0;
@@ -217,26 +182,40 @@ void runGenerations(int **grid, int **newgrid) {
       livingGenerations = findLivingGenerations(newgrid,grid);
     }
 
-
+    /*
     printf("\n");
     if (generation%2 == 0)
       imprime(newgrid);
     else{
        imprime(grid);
     }
+    */
 
-    printf("Geração %d: %d\n", generation+1, livingGenerations);
-    //sleep(1);
+    //printf("Geração %d: %d\n", generation+1, livingGenerations);
   }
+  return livingGenerations;
+}
 
+float time_diff(struct timespec *start, struct timespec *end){
+    return (end->tv_sec - start->tv_sec) + 1e-9*(end->tv_nsec - start->tv_nsec);
 }
 
 int main(int argc, char **argv) {
+  struct timespec start;
+  struct timespec end;
+
   int **grid = matriz_create(N);
   int **newgrid = matriz_create(N);
+  int livingGenerations;
   setInitGrid(grid);
   //imprime(grid);
-  runGenerations(grid, newgrid);
+  clock_gettime(CLOCK_REALTIME, &start);
+  livingGenerations = runGenerations(grid, newgrid);
+  clock_gettime(CLOCK_REALTIME, &end);
+
+  printf("Geração %d: %d\n", G, livingGenerations);
+  printf("time: %0.3fs\n", time_diff(&start, &end));
+
   free(grid);
   free(newgrid);
   return 0;

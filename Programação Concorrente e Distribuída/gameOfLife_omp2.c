@@ -1,13 +1,10 @@
-/* Código omp
-
-  gcc -fopenmp gameOfLife_omp.c -o gameOfLife_omp
-
-*/
+/* Codigo omp */
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <omp.h>
+#include <string.h>
 #include <unistd.h>
+#include <omp.h>
 #include <sys/time.h>
 #include <time.h>
 
@@ -15,17 +12,21 @@
 #define BLUE "\x1b[34m"
 #define RESET "\x1b[0m"
 
-#define V 0        // versão: game of life 0, high life 1
-#define N 2048     // tamanho da matriz
-#define T 4        // número de threads
-#define G 2000     // número de gerações
+#define V 0       //versão: game of live 0, high life 1
+#define N 2048    // tamanho da matriz
+#define G 100     // número de gerações
+#define T 2       // número de threads
 
-int grid[N][N] = {{0}};
-int newgrid[N][N] = {{0}};
+int **matriz_create(int n) {
+  int i;
+  int **matriz = malloc(N * sizeof(int*));
+  for (i = 0; i < N; i++) {
+    matriz[i] = malloc(N * sizeof(int));
+  }
+  return matriz;
+}
 
-pthread_barrier_t barrier;
-
-void imprime(int grid[N][N]) {
+void imprime(int **grid) {
   int i = 0, j = 0;
   for (i = 0; i < N; i++) {
     for (j = 0; j < N; j++) {
@@ -43,27 +44,20 @@ void imprime(int grid[N][N]) {
   }
 }
 
-void zeros(int grid[N][N], int id) {
+void zeros(int **grid) {
   int i, j;
-  int pos = id;
-  int q = N/T;
-  for (i = 0; i < q; i++) {
+  #pragma omp parallel private(i, j)
+  #pragma omp for
+  for (i = 0; i < N; i++) {
     for (j = 0; j < N; j++) {
-      grid[pos][j] = 0;
+      grid[i][j] = 0;
     }
-    pos += T;
   }
-
 }
 
-void setInitGrid(int grid[N][N]) {
+void setInitGrid(int **grid) {
   int lin, col;
-
-  for (lin = 0; lin < N; lin++) {
-    for (col = 0; col < N; col++) {
-      grid[lin][col] = 0;
-    }
-  }
+  zeros(grid);
   // GLIDER
   lin = 1, col = 1;
   grid[lin][col+1] = 1;
@@ -81,7 +75,7 @@ void setInitGrid(int grid[N][N]) {
   grid[lin+2][col+1] = 1;
 }
 
-int getNeighbors(int grid[N][N], int i, int j) {
+int getNeighbors(int **grid, int i, int j) {
   int neighbors = 0;
   int up, bottom, right, left, bottomRight, bottomLeft, upRight, upLeft;
 
@@ -149,7 +143,7 @@ int getNeighbors(int grid[N][N], int i, int j) {
   return neighbors;
 }
 
-void updateNeighbors(int grid[N][N], int newgrid[N][N], int i, int j, int neighbors) {
+void updateNeighbors(int **grid, int **newgrid, int i, int j, int neighbors) {
   if (grid[i][j]) { // celula viva
     if (neighbors == 2 || neighbors == 3) newgrid[i][j] = 1;
     else newgrid[i][j] = 0;
@@ -163,48 +157,36 @@ void updateNeighbors(int grid[N][N], int newgrid[N][N], int i, int j, int neighb
   }
 }
 
-int findLivingGenerations(int grid[N][N], int newgrid[N][N], int id) {
+int findLivingGenerations(int **grid, int **newgrid) {
   int i, j, neighbors, livingGenerations = 0;
-  int pos = id;
-  int q = N/T;
-
-  for (i = 0; i < q; i++) {
-    //printf("Thread[%d] pos=%d\n", id, pos);
+  #pragma omp parallel private(i, j)
+  #pragma omp for
+  for (i = 0; i < N; i++) {
     for (j = 0; j < N; j++) {
-      neighbors = getNeighbors(grid, pos, j);
-      updateNeighbors(grid, newgrid, pos, j, neighbors);
-      if (newgrid[pos][j]) livingGenerations++;
+      neighbors = getNeighbors(grid, i, j);
+      updateNeighbors(grid, newgrid, i, j, neighbors);
+      if (newgrid[i][j]) livingGenerations++;
     }
-    pos += T;
   }
   return livingGenerations;
 }
 
-
-int runGenerations() {
-  int generation, neighbors;
-  int soma, livingGenerations;
-  int id;
-
-  omp_set_num_threads(T);
+int runGenerations(int **grid, int **newgrid) {
+  int generation, i, neighbors, livingGenerations = 0;
   for (generation = 0; generation < G; generation++) {
-    soma = 0;
-    #pragma omp parallel private(id)
-    {
-    id = omp_get_thread_num();
+    livingGenerations = 0;
     if (generation%2 == 0) {
-      zeros(newgrid, id);
-      livingGenerations = findLivingGenerations(grid, newgrid, id);
-    } else {
-      zeros(grid, id);
-      livingGenerations = findLivingGenerations(newgrid, grid, id);
+      zeros(newgrid);
+      livingGenerations = findLivingGenerations(grid,newgrid);
     }
-      soma += livingGenerations;
+    else {
+      zeros(grid);
+      livingGenerations = findLivingGenerations(newgrid,grid);
     }
-    //printf("geração %d: %d\n", generation+1, soma);
-  }
 
-  return soma;
+    //printf("Geração %d: %d\n", generation+1, livingGenerations);
+  }
+  return livingGenerations;
 }
 
 float time_diff(struct timespec *start, struct timespec *end){
@@ -215,16 +197,21 @@ int main(int argc, char **argv) {
   struct timespec start;
   struct timespec end;
 
+  int **grid = matriz_create(N);
+  int **newgrid = matriz_create(N);
   int livingGenerations;
 
   setInitGrid(grid);
+  omp_set_num_threads(T);
 
   clock_gettime(CLOCK_REALTIME, &start);
-  livingGenerations = runGenerations();
+  livingGenerations = runGenerations(grid, newgrid);
   clock_gettime(CLOCK_REALTIME, &end);
 
   printf("Geração %d: %d\n", G, livingGenerations);
   printf("time: %0.3fs\n", time_diff(&start, &end));
 
+  free(grid);
+  free(newgrid);
   return 0;
 }
