@@ -19,13 +19,14 @@
 
 #define V 0        // versão: game of life 0, high life 1
 #define N 2048     // tamanho da matriz
-#define T 1        // número de threads
+#define T 2        // número de threads
 #define G 2000     // número de gerações
 
 int grid[N][N] = {{0}};
 int newgrid[N][N] = {{0}};
 float timeGeneration;
 
+// rotorna o tempo decorrido entre start e end
 float time_diff(struct timespec *start, struct timespec *end){
     return (end->tv_sec - start->tv_sec) + 1e-9*(end->tv_nsec - start->tv_nsec);
 }
@@ -46,13 +47,15 @@ void imprime(int grid[N][N]) {
       }
     }
   }
+  printf("\n");
 }
 
 void zeros(int grid[N][N], int id) {
   int i, j;
   int pos = id;
-  int q = N/T;
+  int q = (N/T) + 1;
   for (i = 0; i < q; i++) {
+    if (pos >= N) break;
     for (j = 0; j < N; j++) {
       grid[pos][j] = 0;
     }
@@ -85,6 +88,7 @@ void setInitGrid(int grid[N][N]) {
   grid[lin+2][col+1] = 1;
 }
 
+// obtém a quantidade de vizinhos
 int getNeighbors(int grid[N][N], int i, int j) {
   int neighbors = 0;
   int up, bottom, right, left, bottomRight, bottomLeft, upRight, upLeft;
@@ -153,6 +157,7 @@ int getNeighbors(int grid[N][N], int i, int j) {
   return neighbors;
 }
 
+// atualiza a próxima geração
 void updateNeighbors(int grid[N][N], int newgrid[N][N], int i, int j, int neighbors) {
   if (grid[i][j]) { // celula viva
     if (neighbors == 2 || neighbors == 3) newgrid[i][j] = 1;
@@ -167,11 +172,13 @@ void updateNeighbors(int grid[N][N], int newgrid[N][N], int i, int j, int neighb
   }
 }
 
+// retorna a quantidade de gerações vivas que a thread computou
 int findLivingGenerations(int grid[N][N], int newgrid[N][N], int id) {
   int i, j, neighbors, livingGenerations = 0;
-  int pos = id;
-  int q = N/T;
+  int pos = id;         // linhas que a thread irá trabalhar
+  int q = (N/T) + 1;    // quantidade de repetições da thread
   for (i = 0; i < q; i++) {
+    if (pos >= N) break;
     for (j = 0; j < N; j++) {
       neighbors = getNeighbors(grid, pos, j);
       updateNeighbors(grid, newgrid, pos, j, neighbors);
@@ -206,7 +213,12 @@ int runGenerations() {
     }
       soma += livingGenerations;
     }
-    //printf("geração %d: %d\n", generation+1, soma);
+    printf("geração %d: %d\n", generation+1, soma);
+    /*
+    if (generation%2 == 0)
+      imprime(newgrid);
+    else imprime(grid);
+    */
   }
   clock_gettime(CLOCK_REALTIME, &end);
   timeGeneration = time_diff(&start, &end);
@@ -217,6 +229,7 @@ int main(int argc, char **argv) {
   int livingGenerations;
 
   setInitGrid(grid);
+  imprime(grid);
   livingGenerations = runGenerations();
 
   printf("Geração %d: %d\n", G, livingGenerations);
