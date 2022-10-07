@@ -1,6 +1,9 @@
 /* Código omp
   $ gcc -fopenmp gameOfLife_omp.c -o gameOfLife_omp
   $ time ./gameOfLife_omp
+
+  André Fernando Quaresma da Silva
+  Jonatas Carrocine
 */
 
 #include <stdio.h>

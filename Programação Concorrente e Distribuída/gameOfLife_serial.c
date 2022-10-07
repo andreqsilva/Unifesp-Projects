@@ -1,6 +1,9 @@
 /* Codigo serial
   $ gcc gameOfLife_serial.c -o gameOfLife_serial
   $ time ./gameOfLife_serial
+
+  André Fernando Quaresma da Silva
+  Jonatas Carrocine
 */
 
 #include <stdio.h>

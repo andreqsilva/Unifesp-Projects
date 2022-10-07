@@ -1,6 +1,9 @@
 /* Código pthread
   $ gcc gameOfLife_pthread.c -o gameOfLife_pthread -lpthread
   $ time ./gameOfLife_pthread
+
+  André Fernando Quaresma da Silva
+  Jonatas Carrocine
 */
 
 #include <stdio.h>
