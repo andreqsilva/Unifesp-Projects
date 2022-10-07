@@ -1,7 +1,6 @@
 /* Código omp
-
-  gcc -fopenmp gameOfLife_omp.c -o gameOfLife_omp
-
+  $ gcc -fopenmp gameOfLife_omp.c -o gameOfLife_omp
+  $ time ./gameOfLife_omp
 */
 
 #include <stdio.h>
@@ -17,13 +16,16 @@
 
 #define V 0        // versão: game of life 0, high life 1
 #define N 2048     // tamanho da matriz
-#define T 4        // número de threads
+#define T 1        // número de threads
 #define G 2000     // número de gerações
 
 int grid[N][N] = {{0}};
 int newgrid[N][N] = {{0}};
+float timeGeneration;
 
-pthread_barrier_t barrier;
+float time_diff(struct timespec *start, struct timespec *end){
+    return (end->tv_sec - start->tv_sec) + 1e-9*(end->tv_nsec - start->tv_nsec);
+}
 
 void imprime(int grid[N][N]) {
   int i = 0, j = 0;
@@ -53,7 +55,6 @@ void zeros(int grid[N][N], int id) {
     }
     pos += T;
   }
-
 }
 
 void setInitGrid(int grid[N][N]) {
@@ -167,9 +168,7 @@ int findLivingGenerations(int grid[N][N], int newgrid[N][N], int id) {
   int i, j, neighbors, livingGenerations = 0;
   int pos = id;
   int q = N/T;
-
   for (i = 0; i < q; i++) {
-    //printf("Thread[%d] pos=%d\n", id, pos);
     for (j = 0; j < N; j++) {
       neighbors = getNeighbors(grid, pos, j);
       updateNeighbors(grid, newgrid, pos, j, neighbors);
@@ -180,13 +179,16 @@ int findLivingGenerations(int grid[N][N], int newgrid[N][N], int id) {
   return livingGenerations;
 }
 
-
 int runGenerations() {
+  struct timespec start;
+  struct timespec end;
   int generation, neighbors;
   int soma, livingGenerations;
   int id;
 
   omp_set_num_threads(T);
+
+  clock_gettime(CLOCK_REALTIME, &start);
   for (generation = 0; generation < G; generation++) {
     soma = 0;
     #pragma omp parallel private(id)
@@ -203,28 +205,18 @@ int runGenerations() {
     }
     //printf("geração %d: %d\n", generation+1, soma);
   }
-
+  clock_gettime(CLOCK_REALTIME, &end);
+  timeGeneration = time_diff(&start, &end);
   return soma;
 }
 
-float time_diff(struct timespec *start, struct timespec *end){
-    return (end->tv_sec - start->tv_sec) + 1e-9*(end->tv_nsec - start->tv_nsec);
-}
-
 int main(int argc, char **argv) {
-  struct timespec start;
-  struct timespec end;
-
   int livingGenerations;
 
   setInitGrid(grid);
-
-  clock_gettime(CLOCK_REALTIME, &start);
   livingGenerations = runGenerations();
-  clock_gettime(CLOCK_REALTIME, &end);
 
   printf("Geração %d: %d\n", G, livingGenerations);
-  printf("time: %0.3fs\n", time_diff(&start, &end));
-
+  printf("timeGeneration: %0.3fs\n", timeGeneration);
   return 0;
 }

@@ -1,7 +1,6 @@
 /* Código pthread
-
-  gcc gameOfLife_pthread.c -o gameOfLife_pthread -lpthread
-
+  $ gcc gameOfLife_pthread.c -o gameOfLife_pthread -lpthread
+  $ time ./gameOfLife_pthread
 */
 
 #include <stdio.h>
@@ -17,13 +16,17 @@
 
 #define V 0        // versão: game of life 0, high life 1
 #define N 2048     // tamanho da matriz
-#define T 4        // número de threads
+#define T 1        // número de threads
 #define G 2000     // número de gerações
 
 int grid[N][N] = {{0}};
 int newgrid[N][N] = {{0}};
-
+float timeGeneration;
 pthread_barrier_t barrier;
+
+float time_diff(struct timespec *start, struct timespec *end){
+    return (end->tv_sec - start->tv_sec) + 1e-9*(end->tv_nsec - start->tv_nsec);
+}
 
 void imprime(int grid[N][N]) {
   int i = 0, j = 0;
@@ -53,7 +56,6 @@ void zeros(int grid[N][N], int *id) {
     }
     pos += T;
   }
-
 }
 
 void setInitGrid(int grid[N][N]) {
@@ -178,12 +180,14 @@ int findLivingGenerations(int grid[N][N], int newgrid[N][N], int *id) {
   return livingGenerations;
 }
 
-
 void *runGenerations(void *args) {
+  struct timespec start;
+  struct timespec end;
   int generation, neighbors;
   long livingGenerations;
   int *id = (int*)args;
 
+  clock_gettime(CLOCK_REALTIME, &start);
   for (generation = 0; generation < G; generation++) {
     if (generation%2 == 0) {
       zeros(newgrid, id);
@@ -194,22 +198,15 @@ void *runGenerations(void *args) {
       pthread_barrier_wait(&barrier);
       livingGenerations = findLivingGenerations(newgrid, grid, id);
     }
-
-      pthread_barrier_wait(&barrier);
-      //printf("Geração %d: %ld\n", generation+1, livingGenerations);
+    pthread_barrier_wait(&barrier);
+    //printf("Geração %d: %ld\n", generation+1, livingGenerations);
   }
-
+  clock_gettime(CLOCK_REALTIME, &end);
+  timeGeneration = time_diff(&start, &end);
   pthread_exit((void*)livingGenerations);
 }
 
-float time_diff(struct timespec *start, struct timespec *end){
-    return (end->tv_sec - start->tv_sec) + 1e-9*(end->tv_nsec - start->tv_nsec);
-}
-
 int main(int argc, char **argv) {
-  struct timespec start;
-  struct timespec end;
-
   pthread_t th[T];
   int i, j, pos[T];
   int rc;
@@ -219,7 +216,6 @@ int main(int argc, char **argv) {
   pthread_barrier_init(&barrier, NULL, T);
   setInitGrid(grid);
 
-  clock_gettime(CLOCK_REALTIME, &start);
   for (i = 0; i < T; i++) {
     pos[i] = i;
     rc = pthread_create(&th[i], NULL, &runGenerations, (void*)&pos[i]);
@@ -238,10 +234,9 @@ int main(int argc, char **argv) {
     livingGenerations += (long)result;
     //printf("livingGenerations=%ld\n", (long)result);
   }
-  clock_gettime(CLOCK_REALTIME, &end);
 
   printf("Geração %d: %d\n", G, livingGenerations);
-  printf("time: %0.3fs\n", time_diff(&start, &end));
+  printf("timeGeneration: %0.3fs\n", timeGeneration);
 
   pthread_barrier_destroy(&barrier);
   pthread_exit(NULL);
