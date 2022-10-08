@@ -1,14 +1,16 @@
-/* Código omp
-  $ gcc -fopenmp gameOfLife_omp.c -o gameOfLife_omp
-  $ time ./gameOfLife_omp
+/* Código pthread
+
+  Para definir a versão (Game of Life/High Life), alterar o valor de V,
+  sendo 0 para Game of Life e 1 para High Life
 
   André Fernando Quaresma da Silva
   Jonatas Carrocine
+
 */
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <omp.h>
+#include <pthread.h>
 #include <unistd.h>
 #include <sys/time.h>
 #include <time.h>
@@ -25,6 +27,7 @@
 int grid[N][N] = {{0}};
 int newgrid[N][N] = {{0}};
 float timeGeneration;
+pthread_barrier_t barrier;
 
 // rotorna o tempo decorrido entre start e end
 float time_diff(struct timespec *start, struct timespec *end){
@@ -50,9 +53,9 @@ void imprime(int grid[N][N]) {
   printf("\n");
 }
 
-void zeros(int grid[N][N], int id) {
+void zeros(int grid[N][N], int *id) { // zerar matriz
   int i, j;
-  int pos = id;
+  int pos = *id;
   int q = (N/T) + 1;
   for (i = 0; i < q; i++) {
     if (pos >= N) break;
@@ -63,7 +66,7 @@ void zeros(int grid[N][N], int id) {
   }
 }
 
-void setInitGrid(int grid[N][N]) {
+void setInitGrid(int grid[N][N]) { // geração inicial
   int lin, col;
 
   for (lin = 0; lin < N; lin++) {
@@ -173,9 +176,9 @@ void updateNeighbors(int grid[N][N], int newgrid[N][N], int i, int j, int neighb
 }
 
 // retorna a quantidade de gerações vivas que a thread computou
-int findLivingGenerations(int grid[N][N], int newgrid[N][N], int id) {
+int findLivingGenerations(int grid[N][N], int newgrid[N][N], int *id) {
   int i, j, neighbors, livingGenerations = 0;
-  int pos = id;         // linhas que a thread irá trabalhar
+  int pos = *id;        // linhas que a thread irá trabalhar
   int q = (N/T) + 1;    // quantidade de repetições da thread
   for (i = 0; i < q; i++) {
     if (pos >= N) break;
@@ -189,50 +192,77 @@ int findLivingGenerations(int grid[N][N], int newgrid[N][N], int id) {
   return livingGenerations;
 }
 
-int runGenerations() {
+void *runGenerations(void *args) {
   struct timespec start;
   struct timespec end;
   int generation, neighbors;
-  int soma, livingGenerations;
-  int id;
-
-  omp_set_num_threads(T);
+  long livingGenerations;
+  int *id = (int*)args;
 
   clock_gettime(CLOCK_REALTIME, &start);
   for (generation = 0; generation < G; generation++) {
-    soma = 0;
-    #pragma omp parallel private(id)
-    {
-    id = omp_get_thread_num();
     if (generation%2 == 0) {
       zeros(newgrid, id);
+      pthread_barrier_wait(&barrier);
       livingGenerations = findLivingGenerations(grid, newgrid, id);
     } else {
       zeros(grid, id);
+      pthread_barrier_wait(&barrier);
       livingGenerations = findLivingGenerations(newgrid, grid, id);
     }
-      soma += livingGenerations;
+    pthread_barrier_wait(&barrier);
+    printf("Geração %d: %ld\n", generation+1, livingGenerations);
+
+    /* //imprime uma matriz para cada geração
+    pthread_barrier_wait(&barrier);
+    if (*id == 0) {
+      if (generation%2 == 0)
+        imprime(newgrid);
+      else imprime(grid);
     }
-    printf("geração %d: %d\n", generation+1, soma);
-    /*
-    if (generation%2 == 0)
-      imprime(newgrid);
-    else imprime(grid);
-    */
+    pthread_barrier_wait(&barrier);
+*/
+
   }
   clock_gettime(CLOCK_REALTIME, &end);
   timeGeneration = time_diff(&start, &end);
-  return soma;
+  pthread_exit((void*)livingGenerations);
 }
 
 int main(int argc, char **argv) {
-  int livingGenerations;
+  pthread_t th[T];
+  int i, j, id[T];
+  int rc;
+  void *result;
+  int livingGenerations = 0;
 
+  pthread_barrier_init(&barrier, NULL, T);
   setInitGrid(grid);
-  imprime(grid);
-  livingGenerations = runGenerations();
+  //imprime(grid);
 
-  printf("Geração %d: %d\n", G, livingGenerations);
+  for (i = 0; i < T; i++) {
+    id[i] = i;
+    rc = pthread_create(&th[i], NULL, &runGenerations, (void*)&id[i]);
+    if (rc) {
+      printf("ERROR: create=%d\n", rc);
+      exit(-1);
+    }
+  }
+
+  for (i = 0; i < T; i++) {
+    rc = pthread_join(th[i], &result);
+    if (rc) {
+      printf("ERROR: join=%d\n", rc);
+      exit(-1);
+    }
+    livingGenerations += (long)result;
+    //printf("livingGenerations=%ld\n", (long)result);
+  }
+
+  printf("\nGeração final %d: %d\n", G, livingGenerations);
   printf("timeGeneration: %0.3fs\n", timeGeneration);
+
+  pthread_barrier_destroy(&barrier);
+  pthread_exit(NULL);
   return 0;
 }
