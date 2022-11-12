@@ -53,34 +53,34 @@ int main(int argc, char **argv) {
 	// inicia o servidor
 	rc = pthread_create(&servidor, NULL, &server, (void*)&id[0]);
 	if (rc) {
-    	printf("ERROR: create=%d\n", rc);
-      	exit(-1);
-    }
+  	printf("ERROR: create=%d\n", rc);
+    exit(-1);
+  }
 
-    // incia os clientes
+  // incia os clientes
 	for (i = 1; i < n_clientes+1; i++) {
 		id[i] = i;
 		rc = pthread_create(&clientes[i-1], NULL, &client, (void*)&id[i]);
 		if (rc) {
-     		 printf("ERROR: create=%d\n", rc);
-      		exit(-1);
-    	}
+     	printf("ERROR: create=%d\n", rc);
+			exit(-1);
+    }
 	}
 
 	rc = pthread_join(servidor, NULL);
 	if (rc) {
 		printf("ERROR: join=%d\n", rc);
-	    exit(-1);  
+	  exit(-1);
 	}
 
 	for (i = 1; i < n_clientes+1; i++) {
 		rc = pthread_join(clientes[i-1], NULL);
 		if (rc) {
-	      printf("ERROR: join=%d\n", rc);
-	      exit(-1);
-	    }
+	  	printf("ERROR: join=%d\n", rc);
+	    exit(-1);
+	  }
 	}
-
+	
 	pthread_exit(NULL);
 	return 0;
 }
