@@ -1,9 +1,10 @@
-/*
+/* Versão para testes
+
   André Fernando Quaresma da Silva
   Jonatas Carrocine
 
-  $ gcc cliente-servidor-pt.c -o cliente-servidor-pt -lpthread
-  $ ./cliente-servidor-pt <numero_de_clientes>
+  $ gcc cliente-servidor-testes.c -o cliente-servidor-testes -lpthread
+  $ ./cliente-servidor-testes <numero_de_clientes>
 */
 
 #include <stdio.h>
@@ -11,6 +12,11 @@
 #include <unistd.h>
 #include <pthread.h>
 
+#define ONLINE 1
+#define OFFLINE 0
+
+int n_request = 100; // número máximo de requisições
+int server_status = ONLINE;
 int SOMA = 0;
 int request = 0;
 int respond = 0;
@@ -24,25 +30,31 @@ void critical_section(int i) {
 
 void *client(void *args) {
   int *i = (int*)args;
-  while (1) {
+  while (server_status == ONLINE) {
     /* pré-protocolo */
     while (respond != *i) {
       request = *i;
+      if (server_status == OFFLINE) break;
     }
-    critical_section(*i);
-    respond = 0;
+    if (server_status == ONLINE) {
+      critical_section(*i);
+      respond = 0;
+    }
   }
+  //printf("thread[%d] saiu\n", *i);
   pthread_exit(NULL);
 }
 
 void *server(void *args) {
   int *i = (int*)args;
-  while (1) {
+  while (SOMA < n_request) {
     while (request == 0); // await request != 0
     respond = request;
     while (respond != 0); // await respond == 0
     request = 0;
   }
+  server_status = OFFLINE;
+  //printf("thread[%d] saiu\n", *i);
   pthread_exit(NULL);
 }
 
@@ -50,7 +62,7 @@ int main(int argc, char **argv) {
   int n_clientes, rc, i;
 
   if (argc < 2) {
-    perror("<numero_de_clientes>");
+    perror("<numero_de_threads>");
     exit(0);
   }
   n_clientes = atoi(argv[1]);
@@ -60,7 +72,7 @@ int main(int argc, char **argv) {
   pthread_t servidor;
   pthread_t clientes[n_clientes];
 
-  // inicia o servidor com a thread de id 0
+  // inicia o servidor
   rc = pthread_create(&servidor, NULL, &server, (void*)&id[0]);
   if (rc) {
     printf("ERROR: create=%d\n", rc);
@@ -91,6 +103,7 @@ int main(int argc, char **argv) {
     }
   }
 
+  printf("Requisições=%d\nSOMA=%d\n", n_request, SOMA);
   pthread_exit(NULL);
   return 0;
 }

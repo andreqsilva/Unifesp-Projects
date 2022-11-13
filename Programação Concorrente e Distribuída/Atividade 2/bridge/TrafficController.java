@@ -1,3 +1,8 @@
+/*
+  André Fernando Quaresma da Silva
+  Jonatas Carrocine
+*/
+
 public class TrafficController {
   boolean libera = true;
 
