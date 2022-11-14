@@ -1,3 +1,8 @@
+/*
+  André Fernando Quaresma da Silva
+  Jonatas Carrocine
+*/
+
 import java.awt.*;
 
 public class Car implements Runnable{

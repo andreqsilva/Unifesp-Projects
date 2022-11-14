@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
   }
   n_clientes = atoi(argv[1]);
 
-  int id[n_clientes];
+  int id[n_clientes+1];
   id[0] = 0;
   pthread_t servidor;
   pthread_t clientes[n_clientes];

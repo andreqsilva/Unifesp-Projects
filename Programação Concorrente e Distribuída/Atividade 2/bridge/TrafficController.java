@@ -8,7 +8,7 @@ public class TrafficController {
 
   public synchronized void enterBridge() {
     try {
-      while (!libera) wait();
+      while (!libera) wait(); // bloqueia a thread
         libera = false;
     } catch (InterruptedException ie) {
       System.err.println(ie.toString());
@@ -17,7 +17,7 @@ public class TrafficController {
 
   public synchronized void leaveBridge() {
     libera = true;
-    notifyAll();
+    notifyAll(); // libera todas as threads
   }
 
   /*
