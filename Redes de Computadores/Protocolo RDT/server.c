@@ -14,29 +14,72 @@
 #define FILA 1000
 #define MAX_REQ 1024
 
-struct header {
+struct packet_t {
 	int ack;
 	int seqnum;
 	int checksum;
 	char data[MAX_REQ];
-} sendhdr, recvhdr;
+};
+typedef struct packet_t packet_t;
 
 int isACK(int seqnum, int seq) {
 	if (seqnum == seq) return 1;
 	else return 0;
 }
 
-int udt_send(int cfd, int nr, struct sockaddr_in caddr, socklen_t addr_len) {
+struct timeval settimer(void) {
+	//(struct timeval rtt){
+	//
 	struct timeval timeout;
 	timeout.tv_sec = 5;  // segundos
-  timeout.tv_usec = 0; // microssegundos
+  	timeout.tv_usec = 0; // microssegundos
+	return(timeout);
+}
 
-  if (setsockopt (cfd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0) {
-  	perror("setsockop()");
-    return -1;
-  }
 
-  sendto(cfd, (void *)&sendhdr, nr, 0, (struct sockaddr*)&caddr, sizeof(struct sockaddr_in));
+
+packet_t make_packet(unsigned char *msg, int msg_size, int seqnum){
+	packet_t pck;
+	bzero(&pck, sizeof(pck_t));
+	pck.ack = 0;
+	pck.seqnum = seqnum;
+	pck.checksum(msg, msg_size);
+	memcpy(pck.data, msg, msg_size);
+	return (pck);
+}
+
+int seq_num = 0;
+
+int rdt_send(int s, unsigned char *msg, int msg_size, struct sockaddr_in dst) {
+
+	packet_t pck = make_packet(msg, msg_size, seqnum);
+
+	do {
+		// t1 = getttimeofday()
+		ns = sendto(s, &pck, sizeof(pck_t), 0, &dst, sizeof(struct sockaddr_in));
+
+		struct timeval = settimer(); // passar rtt aqui
+		if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0) {
+  			perror("setsockop()");
+    			return -1;
+		}
+
+		//printf("Aguardando confirmação seqnum=%d\n", seq);
+		nr = recvfrom(s, (void *)&recvhdr, sizeof(struct header), 0,
+                               		(struct sockaddr *)&caddr, &addr_len);
+		if (nr < 0) {
+		      	if (errno == EWOULDBLOCK || errno == EAGAIN) {
+        			perror("socket timeout");
+	     			continue;
+        		}
+		} else {
+			// t2 = gettimeofday()
+			// rtt = t2 - t1 // timeval ... timedif
+			seq++;
+			// atualizar o timer;
+		}
+	} while (nr < 0 || !isACK(recvhdr.seqnum, seq));
+
 	return 0;
 }
 
@@ -115,30 +158,30 @@ int main(int argc, char **argv) {
 		if (seq == 0) strcpy(data, "pkt0");
 		else strcpy(data, "pkt1");
 
-		checksum = getChecksum(data, 0);
-		make_pkt(seq, data, checksum);
-		udt_send(cfd, nr, caddr, addr_len);
+		//checksum = getChecksum(data, 0);
+		//make_pkt(seq, data, checksum);
+		rdt_send(cfd, data, addr_len, caddr);
 
-		do {
+		/*do {
 			//printf("Aguardando confirmação seqnum=%d\n", seq);
 			n = recvfrom(cfd, (void *)&recvhdr, sizeof(struct header), 0,
                                 		(struct sockaddr *)&caddr, &addr_len);
 			if (n < 0) {
-      	if (errno == EWOULDBLOCK) {
-        	perror("socket timeout");
-		      udt_send(cfd, n, caddr, addr_len);
-        }
+			      	if (errno == EWOULDBLOCK) {
+        				perror("socket timeout");
+		     			 udt_send(cfd, n, caddr, addr_len);
+        			}
 			}
 		} while (n < 0 || !isACK(recvhdr.seqnum, seq));
 
 		printf("Cliente IP(%s):Porta(%d): %d bytes: %s\n",
-    	inet_ntoa(caddr.sin_addr),
-      ntohs(caddr.sin_port),
-      n,
-      recvhdr.data);
-    fflush(stdout);
+    		inet_ntoa(caddr.sin_addr),
+     		 ntohs(caddr.sin_port),
+     		 n,
+    		  recvhdr.data);
+   		 fflush(stdout);
 
-		seq = (seq+1)%2;
+		seq = (seq+1)%2;*/
 	}
 	close(ls);
 	return 0;
