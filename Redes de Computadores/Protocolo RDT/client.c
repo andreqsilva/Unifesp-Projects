@@ -12,14 +12,42 @@
 #include <sys/time.h>
 #include <errno.h>
 
-#define MAXLINE 1000
+#define MAX_RES 1024
 
-static struct hdr {
-	uint32_t seq_num;
-	char message[MAXLINE];
+static struct header {
+	int ack;
+	int seqnum;
+	int checksum;
+	char data[MAX_RES];
 } sendhdr, recvhdr;
 
-static struct msghdr msgsend, msgrecv;
+int getChecksum(char *addr, int recvChecksum) {
+	int count = strlen(addr);
+	register long sum = recvChecksum;
+	register long checksum;
+
+	while (count > 1) {
+		sum += *addr++;
+		count -= 2;
+	}
+	if (count > 0) {
+		sum += * (unsigned char *) addr;
+	}
+	while (sum >> 16) {
+		sum = (sum & 0xffff) + (sum >> 16);
+	}
+
+	if (recvChecksum > 0) checksum = ~sum;
+	else checksum = sum;
+
+	return checksum;
+}
+
+void make_pkt(int seqnum, char *data, int checksum) {
+	strcpy(sendhdr.data, data);
+	sendhdr.seqnum = seqnum;
+	sendhdr.checksum = checksum;
+}
 
 int main(int argc, char **argv) {
 	int sockfd;
@@ -44,37 +72,45 @@ int main(int argc, char **argv) {
 		return -1;
 	}
 
-	int n;
-	char sendline[MAXLINE] = {"message from client"}, recvline[MAXLINE + 1];
+	int n, checksum, oncethru = 0;
 	socklen_t addr_len = sizeof(struct sockaddr_in);
-	struct timeval timeout;
+	char data[MAX_RES];
 
-	timeout.tv_sec = 5;  // segundos
-	timeout.tv_usec = 0; // microssegundos
+	int i = 0;
+	while (1) {
+		sleep(1);
+		strcpy(sendhdr.data, "Solicitando pacote");
+		sendto(sockfd, (void *)&sendhdr, sizeof(struct header), 0, (struct sockaddr *)&servaddr, sizeof(struct sockaddr_in));
+		do {
+			//if (i == 5) sleep(6);
+			n = recvfrom(sockfd, (void *)&recvhdr, sizeof(struct header), 0, (struct sockaddr *)&servaddr, &addr_len);
+			if (recvhdr.seqnum == (oncethru+1)%2) {
+				sendto(sockfd, (void *)&sendhdr, sizeof(struct header), 0, (struct sockaddr *)&servaddr, sizeof(struct sockaddr_in));
+			}
 
-	if (setsockopt (sockfd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0) {
-		perror("setsockop()");
-	}
+			//printf("checksumRecv: %d\n", getChecksum(recvhdr.data, recvhdr.checksum));
 
-	sendhdr.seq_num = 10;
-	sendto(sockfd, (void *)&sendhdr, sizeof(struct hdr), 0, (struct sockaddr *)&servaddr, sizeof(struct sockaddr_in));
+		} while ( n < 0 || recvhdr.seqnum == (oncethru+1)%2 );
 
-	n = recvfrom(sockfd, (void *)&recvhdr, sizeof(struct hdr), 0, (struct sockaddr *)&servaddr, &addr_len);
-	if (n < 0) {
-		if (errno == EWOULDBLOCK) {
-			perror("socket timeout");
-			return -1;
-		} else {
-			perror("recvfrom()");
-			return -1;
-		}
-	}
-
-	printf("Servidor IP(%s):Porta(%d): %d bytes: %s\n",
+		printf("Servidor IP(%s):Porta(%d): %d bytes: %s \n",
 		inet_ntoa(servaddr.sin_addr),
 		ntohs(servaddr.sin_port),
-		n, recvhdr.message);
+		n, recvhdr.data);
+
+		//printf("Pacote %d recebido\n", oncethru);
+
+		if (recvhdr.seqnum == 0) strcpy(data, "ACK0");
+		else strcpy(data, "ACK1");
+
+		checksum = getChecksum(data, 0);
+		make_pkt(recvhdr.seqnum, data, checksum);
+		sendto(sockfd, (void *)&sendhdr, sizeof(struct header), 0, (struct sockaddr *)&servaddr, sizeof(struct sockaddr_in));
+
+		oncethru = (oncethru+1)%2;
+		i++;
+	}
 
 	close(sockfd);
 	return 0;
 }
+
