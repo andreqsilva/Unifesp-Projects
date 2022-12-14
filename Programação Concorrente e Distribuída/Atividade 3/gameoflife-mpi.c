@@ -1,0 +1,324 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <mpi.h>
+#include <unistd.h>
+#include <sys/time.h>
+#include <time.h>
+#include <math.h>
+
+#define RED "\x1b[31m"
+#define BLUE "\x1b[34m"
+#define RESET "\x1b[0m"
+
+#define V 0        // versão: game of life 0, high life 1
+#define N 50     // tamanho da matriz
+#define G 4     // número de gerações
+
+void imprime(int grid[N][N]) {
+  int i = 0, j = 0;
+  for (i = 0; i < N; i++) {
+    for (j = 0; j < N; j++) {
+      if (grid[i][j]) {
+        printf(RED "%d" RESET, grid[i][j]);
+      } else {
+        printf(BLUE "%d" RESET, grid[i][j]);
+      }
+      if (j == N-1) {
+        printf("\n");
+      } else {
+        printf(" ");
+      }
+    }
+  }
+  printf("\n");
+}
+
+void setInitGrid(int grid[N][N]) {
+  int lin, col;
+
+  for (lin = 0; lin < N; lin++) {
+    for (col = 0; col < N; col++) {
+      grid[lin][col] = 0;
+    }
+  }
+  // GLIDER
+  lin = 1, col = 1;
+  grid[lin][col+1] = 1;
+  grid[lin+1][col+2] = 1;
+  grid[lin+2][col] = 1;
+  grid[lin+2][col+1] = 1;
+  grid[lin+2][col+2] = 1;
+
+  //R-pentomino
+  lin = 10; col = 30;
+  grid[lin][col+1] = 1;
+  grid[lin][col+2] = 1;
+  grid[lin+1][col] = 1;
+  grid[lin+1][col+1] = 1;
+  grid[lin+2][col+1] = 1;
+}
+
+int getNeighbors(int grid[][N], int i, int j) {
+  int neighbors = 0;
+  int up, bottom, right, left, bottomRight, bottomLeft, upRight, upLeft;
+
+  // up //
+  if (i == 0) up = grid[N-1][j];
+  else up = grid[i-1][j];
+
+  // bottom //
+  if (i == N-1) bottom = grid[0][j];
+  else bottom = grid[i+1][j];
+
+  // right //
+  if (j == N-1) right = grid[i][0];
+  else right = grid[i][j+1];
+
+  // left //
+  if (j == 0) left = grid[i][N-1];
+  else left = grid[i][j-1];
+
+  // upRight //
+  if (i == 0) {
+    if (j == N-1) upRight = grid[N-1][0];
+    else upRight = grid[N-1][j+1];
+  } else {
+    if (j == N-1) upRight = grid[i-1][0];
+    else upRight = grid[i-1][j+1];
+  }
+
+  // upLeft //
+  if (i == 0) {
+    if (j == 0) upLeft = grid[N-1][N-1];
+    else upLeft = grid[N-1][j-1];
+  } else {
+    if (j == 0) upLeft = grid[i-1][N-1];
+    else upLeft = grid[i-1][j-1];
+  }
+
+  // bottomRight //
+  if (i == N-1) {
+    if (j == N-1) bottomRight = grid[0][0];
+    else bottomRight = grid[0][j+1];
+  } else {
+    if (j == N-1) bottomRight = grid[i+1][0];
+    else bottomRight = grid[i+1][j+1];
+  }
+
+  // bottomLeft //
+  if (i == N-1) {
+    if (j == 0) bottomLeft = grid[0][N-1];
+    else bottomLeft = grid[0][j-1];
+  } else {
+    if (j == 0) bottomLeft = grid[i+1][N-1];
+    else bottomLeft = grid[i+1][j-1];
+  }
+
+  if (up) neighbors++;
+  if (bottom) neighbors++;
+  if (right) neighbors++;
+  if (left) neighbors++;
+  if (upRight) neighbors++;
+  if (upLeft) neighbors++;
+  if (bottomRight) neighbors++;
+  if (bottomLeft) neighbors++;
+
+  return neighbors;
+}
+
+void updateNeighbors(int grid[][N], int newgrid[][N], int i, int j, int neighbors) {
+  if (grid[i][j]) { // celula viva
+    if (neighbors == 2 || neighbors == 3) newgrid[i][j] = 1;
+    else newgrid[i][j] = 0;
+  }
+  else { //celula morta
+    if (V == 0) { // Game of life
+      if (neighbors == 3) newgrid[i][j] = 1;
+      else newgrid[i][j] = 0;
+    } else if (V == 1) { // High life
+      if (neighbors == 3 || neighbors == 6) newgrid[i][j] = 1;
+      else newgrid[i][j] = 0;
+    }
+  }
+}
+
+int findLivingGenerations(int grid[][N], int newgrid[][N], int nRows) {
+  int i, j, neighbors, livingGenerations = 0;
+  for (i = 1; i < nRows+1; i++) {
+    for (j = 0; j < N; j++) {
+      neighbors = getNeighbors(grid, i, j);
+      updateNeighbors(grid, newgrid, i, j, neighbors);
+      if (newgrid[i][j]) livingGenerations++;
+    }
+  }
+  return livingGenerations;
+}
+
+void zeros(int matrix[][N], int nRows) {
+  int i, j;
+  for (i = 0; i < nRows; i++) {
+    for (j = 0; j < N; j++) {
+      matrix[i][j] = 0;
+    }
+  }
+}
+
+void moveDown(int matrix[][N], int nRows) {
+  int i, j;
+  for (i = nRows; i > 0; i--) {
+    for (j = 0; j < N; j++) {
+      matrix[i][j] = matrix[i-1][j];
+    }
+  }
+}
+
+int main(int argc, char **argv) {
+  int procID, nProcs, master = 0;
+  int i, j, generation, livingGenerations;
+
+  MPI_Init(&argc, &argv);
+  MPI_Comm_rank(MPI_COMM_WORLD, &procID);
+  MPI_Comm_size(MPI_COMM_WORLD, &nProcs);
+
+  int first, nRows, localSize, vecRows[nProcs];
+  int sendcounts[nProcs], begin[nProcs];
+
+  for (i = 0; i < nProcs; i++) {
+    localSize = N/nProcs;
+    begin[i] = i * localSize;
+
+    if (i == nProcs-1) vecRows[i] = N - begin[i];
+    else vecRows[i] = floor((float)N/nProcs);
+
+    sendcounts[i] = vecRows[i] * N;
+    if (i > 0) begin[i] = (vecRows[i-1] * N * i);
+  }
+
+  nRows = vecRows[procID];
+
+  /*
+  int **grid = (int **) malloc((nRows + 2) * sizeof(int *));
+  // make negrid
+
+  for (i = 0; i < nRows+2; i++) {
+    grid[i] = (int *) malloc(N * sizeof(int));
+    //newgrid
+  }
+  */
+  int grid[nRows+2][N];
+  int newgrid[nRows+2][N];
+
+  zeros(newgrid, nRows+2);
+
+  //printf("[%d]nRows=%d, localSize=%d, first=%d sendcounts=%d\n", procID, nRows, localSize, begin[procID], sendcounts[procID]);
+
+  // Compartilha o pedaço da matriz inicial com o processo correspondente //
+
+  if (procID == master) {
+    int initialGrid[N][N];
+    setInitGrid(initialGrid);
+    //imprime(initialGrid);
+    MPI_Scatterv(initialGrid, sendcounts, begin, MPI_INT, grid,
+                ((nRows+2)*N), MPI_INT, master, MPI_COMM_WORLD);
+  } else {
+    MPI_Scatterv(NULL, sendcounts, begin, MPI_INT, grid,
+                ((nRows+2)*N), MPI_INT, master, MPI_COMM_WORLD);
+
+    if (procID == nProcs-1) grid[nRows-1][49] = 0; // bug na ultima celula
+  }
+
+
+  moveDown(grid, nRows);
+
+  int nextProc, previousProc;
+  if (procID == 0) previousProc = nProcs - 1;
+  else previousProc = procID - 1;
+  nextProc = (procID + 1) % nProcs;
+
+  MPI_Request request;
+
+  for (generation = 0; generation < G; generation++) {
+    MPI_Barrier(MPI_COMM_WORLD);
+    if (generation%2 == 0) {
+      MPI_Isend(&grid[1], N, MPI_INT, previousProc, 10, MPI_COMM_WORLD, &request);
+      MPI_Isend(&grid[nRows], N, MPI_INT, nextProc, 10, MPI_COMM_WORLD, &request);
+      MPI_Recv(&grid[nRows+1], N, MPI_INT, nextProc, 10, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Recv(&grid[0], N, MPI_INT, previousProc, 10, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      livingGenerations = findLivingGenerations(grid, newgrid, nRows);
+
+      /*
+      MPI_Barrier(MPI_COMM_WORLD);
+      if (procID == master) {
+        for (i = 0; i < nRows+2; i++) {
+          for (j = 0; j < N; j++) {
+            if (newgrid[i][j]) printf(RED "%d" RESET, newgrid[i][j]);
+            else printf(BLUE "%d" RESET, newgrid[i][j]);
+            if (j == N-1) printf("\n");
+            else printf(" ");
+          }
+        }
+        printf("\n");
+      }
+      */
+
+    } else {
+      MPI_Isend(&newgrid[1], N, MPI_INT, previousProc, 12, MPI_COMM_WORLD, &request);
+      MPI_Isend(&newgrid[nRows], N, MPI_INT, nextProc, 12, MPI_COMM_WORLD, &request);
+      MPI_Recv(&newgrid[nRows+1], N, MPI_INT, nextProc, 12, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Recv(&newgrid[0], N, MPI_INT, previousProc, 12, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      livingGenerations = findLivingGenerations(newgrid, grid, nRows);
+
+      /*
+      MPI_Barrier(MPI_COMM_WORLD);
+      if (procID == master) {
+        for (i = 0; i < nRows+2; i++) {
+          for (j = 0; j < N; j++) {
+            if (grid[i][j]) printf(RED "%d" RESET, grid[i][j]);
+            else printf(BLUE "%d" RESET, grid[i][j]);
+            if (j == N-1) printf("\n");
+            else printf(" ");
+          }
+        }
+        printf("\n");
+      }
+      */
+    }
+    if (generation == G-1) printf("[%d]livingGenerations=%d\n", procID, livingGenerations);
+  }
+
+/*
+  for (i = 0; i < nRows; i++) {
+    for (j = 0; j < N; j++) {
+      if (grid[i][j]) {
+        printf("[%d](%d,%d)\n", procID, i, j);
+      }
+    }
+  }
+*/
+/*
+  MPI_Barrier(MPI_COMM_WORLD);
+  if (procID == master) {
+    printf("[%d]nRows=%d, localSize=%d, begin=%d sendcounts=%d\n", procID, nRows, localSize, begin[procID], sendcounts[procID]);
+    for (i = 0; i < nRows+2; i++) {
+      for (j = 0; j < N; j++) {
+        if (grid[i][j]) {
+          printf("[%d](%d,%d)\n", procID, i, j);
+        }
+      }
+    }
+
+    for (i = 0; i < nRows+2; i++) {
+      for (j = 0; j < N; j++) {
+        if (grid[i][j]) printf(RED "%d" RESET, grid[i][j]);
+        else printf(BLUE "%d" RESET, grid[i][j]);
+        if (j == N-1) printf("\n");
+        else printf(" ");
+      }
+    }
+    printf("\n");
+  }
+  */
+
+  //free(grid);
+  MPI_Finalize();
+}
