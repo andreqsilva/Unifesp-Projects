@@ -24,8 +24,8 @@
 #define RESET "\x1b[0m"
 
 #define V 0        // versão: game of life 0, high life 1
-#define N 50     // tamanho da matriz
-#define G 1     // número de gerações
+#define N 2048     // tamanho da matriz
+#define G 2000     // número de gerações
 
 void zeros(int **matrix, int nRows) {
   int i, j;
