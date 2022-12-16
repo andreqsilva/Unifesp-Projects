@@ -36,7 +36,7 @@ void zeros(int **matrix, int nRows) {
   }
 }
 
-void replace(int **grid, int *recvbuffer, int nRows) {
+void join(int **grid, int *recvbuffer, int nRows) {
   int i, j;
   for (i = 0; i < nRows+2; i++) {
     for (j = 0; j < N; j++) {
@@ -214,7 +214,7 @@ int main(int argc, char **argv) {
   }
   zeros(newgrid, nRows+2);
 
-  replace(grid, recvbuffer, nRows);
+  join(grid, recvbuffer, nRows);
 
   int nextProc, previousProc, finalLivingGenerations;
   if (procID == 0) previousProc = nProcs - 1;
