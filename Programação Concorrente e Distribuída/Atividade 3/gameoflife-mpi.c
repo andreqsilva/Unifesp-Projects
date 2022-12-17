@@ -175,6 +175,8 @@ int main(int argc, char **argv) {
   MPI_Comm_rank(MPI_COMM_WORLD, &procID);
   MPI_Comm_size(MPI_COMM_WORLD, &nProcs);
 
+  tempoInicio = MPI_Wtime(); //Tempo inicial da execução do programa
+
   int nRows, localSize, vecRows[nProcs];
   int sendcounts[nProcs], begin[nProcs];
 
@@ -244,8 +246,11 @@ int main(int argc, char **argv) {
     }
   }
 
+  tempoFinal = MPI_Wtime(); //Tempo do término da execução do programa
+
   if (procID == master) {
     printf("Geração final %d: %d\n", G, finalLivingGenerations);
+    printf("Tempo: %.04fs\n", (tempoFinal - tempoInicio));
   }
 
   free(grid);
