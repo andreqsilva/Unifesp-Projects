@@ -1,17 +1,4 @@
-#include <stdio.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <stdlib.h>
-#include <strings.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <arpa/inet.h>
-#include <pthread.h>
-#include <sys/time.h>
-#include <errno.h>
-#include <string.h>
-
-#define MAX_REQ 1024
+#include "rdt.h"
 
 struct packet_t {
   unsigned short ack;
