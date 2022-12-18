@@ -4,12 +4,12 @@
 int main(int argc, char **argv) {
 
 	if (argc != 2) {
-		printf("%s <porta>\n", argv[0]);
-		return 0;
+			printf("%s <porta>\n", argv[0]);
+			return 0;
 	}
 
-	int ls = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	if (ls < 0) {
+	int s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	if (s < 0) {
 		perror("socket()");
 		return -1;
 	}
@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
 	addr.sin_port = htons(atoi(argv[1]));
 	addr.sin_family = AF_INET;
 
-	if (bind(ls, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+	if (bind(s, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
 		perror("bind()");
 		return -1;
 	}
@@ -34,15 +34,16 @@ int main(int argc, char **argv) {
 		bzero(&caddr, addr_len);
 		if (cfd < 0) {
 			perror("accept()");
-			close(ls);
+			close(s);
 			return -1;
 		}
-		cfd = ls;
+		cfd = s;
 		unsigned char req[MAX_REQ];
-		//printf("Aguardando requisição...\n");
 		nr = recvfrom(cfd, req, MAX_REQ, 0, (struct sockaddr *)&caddr, &addr_len);
 		rdt_send(cfd, message, msg_size, caddr);
 	}
-	close(ls);
+
+	close(s);
 	return 0;
 }
+

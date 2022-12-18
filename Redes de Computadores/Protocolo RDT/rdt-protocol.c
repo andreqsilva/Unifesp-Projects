@@ -91,10 +91,7 @@ int rdt_send(int s, unsigned char *msg, int msg_size, struct sockaddr_in dst) {
       }
     } while (!nextseq);
 
-    printf("Receiver IP(%s): %d bytes: %s \n",
-            inet_ntoa(dst.sin_addr),
-            nr,
-            recvpck.message);
+    printf("Receiver IP(%s): %d bytes: %s\n", inet_ntoa(dst.sin_addr), nr, recvpck.message);
     fflush(stdout);
 
   } while (!nextseq);
@@ -120,10 +117,7 @@ int rdt_recv(int s, struct sockaddr_in rmt) {
       }
     } while (!next);
 
-    printf("Sender IP(%s): %d bytes: %s\n",
-  					inet_ntoa(rmt.sin_addr),
-  					nr,
-  					recvpck.message);
+    printf("Sender IP(%s): %d bytes: %s\n", inet_ntoa(rmt.sin_addr), nr, recvpck.message);
   	fflush(stdout);
 
     if (oncethru == 0) strcpy(message, "ACK0");
@@ -136,3 +130,4 @@ int rdt_recv(int s, struct sockaddr_in rmt) {
   oncethru = (oncethru+1) % 2;
   return 0;
 }
+
