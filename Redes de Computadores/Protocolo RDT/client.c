@@ -24,17 +24,17 @@ int main(int argc, char **argv) {
     return -1;
   }
 
-  int ns;
+  int ns, pck_recv = 0;
   unsigned char reqmsg[MAX_RES] = {"Requisitando pacote"};
-  packet_t recvpck;
 
-  while (1) {
-    sleep(1);
-    ns = sendto(s, reqmsg, MAX_RES, 0, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
-    rdt_recv(s, addr);
+  // Enviando requisição //
+  ns = sendto(s, reqmsg, MAX_RES, MSG_CONFIRM, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
+  // Recebendo os pacotes //
+  while (pck_recv < PCK_NUM) {
+    rdt_recv(s, pck_recv, addr);
+    pck_recv++;
   }
 
   close(s);
   return 0;
 }
-

@@ -15,8 +15,8 @@
 #include <sys/time.h>
 #include <errno.h>
 
-#define FILA 1000
 #define MAX_RES 1024
 #define MAX_REQ 1024
+#define PCK_NUM 100000
 
 #endif

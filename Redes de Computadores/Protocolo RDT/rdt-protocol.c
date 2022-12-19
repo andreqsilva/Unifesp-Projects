@@ -12,9 +12,9 @@ float time_diff(struct timeval *start, struct timeval *end){
     return (end->tv_sec - start->tv_sec) + 1e-9*(end->tv_usec - start->tv_usec);
 }
 
-struct timeval settimer(int rtt) {
+struct timeval settimer(int sec) {
   struct timeval timeout;
-  timeout.tv_sec = rtt;
+  timeout.tv_sec = sec;
   timeout.tv_usec = 0;
   return timeout;
 }
@@ -61,16 +61,18 @@ packet_t make_packet(unsigned char *msg, int msg_size, unsigned short seqnum) {
 
 int seq_num = 0;
 
-int rdt_send(int s, unsigned char *msg, int msg_size, struct sockaddr_in dst) {
+int rdt_send(int s, unsigned char *msg, int msg_size, int req, struct sockaddr_in dst) {
   packet_t recvpck, sendpck = make_packet(msg, msg_size, seq_num);
   socklen_t addr_len = sizeof(struct sockaddr_in);
   struct timeval t1, t2;
-  int nr, ns, nextseq = 0, rtt = 5;
+  int nr, ns, sec = 5, nextseq = 0;
+  float rtt, rttms;
 
   do {
     gettimeofday(&t1, NULL);
-    ns = sendto(s, (void *)&sendpck, sizeof(packet_t), 0, (struct sockaddr *)&dst, sizeof(struct sockaddr_in));
-    struct timeval timeout = settimer(rtt);
+    ns = sendto(s, (void *)&sendpck, sizeof(packet_t), MSG_CONFIRM, (struct sockaddr *)&dst, sizeof(struct sockaddr_in));
+
+    struct timeval timeout = settimer(sec);
     if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0) {
       perror("setsockopt()");
       return -1;
@@ -79,7 +81,7 @@ int rdt_send(int s, unsigned char *msg, int msg_size, struct sockaddr_in dst) {
     //printf("sendmessage=%s, seqnum=%d, checksum=%d\n", sendpck.message, sendpck.seqnum, sendpck.checksum);
 
     do {
-      nr = recvfrom(s, (void *)&recvpck, sizeof(packet_t), 0, (struct sockaddr *)&dst, &addr_len);
+      nr = recvfrom(s, (void *)&recvpck, sizeof(packet_t), MSG_WAITALL, (struct sockaddr *)&dst, &addr_len);
       if (nr < 0) {
         if (errno == EWOULDBLOCK || errno == EAGAIN) {
           perror("socket timeout");
@@ -90,44 +92,57 @@ int rdt_send(int s, unsigned char *msg, int msg_size, struct sockaddr_in dst) {
         nextseq = 1;
       }
     } while (!nextseq);
-
-    printf("Receiver IP(%s): %d bytes: %s\n", inet_ntoa(dst.sin_addr), nr, recvpck.message);
-    fflush(stdout);
-
   } while (!nextseq);
 
   gettimeofday(&t2, NULL);
   rtt = time_diff(&t1, &t2);
+  rttms = (t2.tv_sec - t1.tv_sec) * 1000000 + t2.tv_usec - t1.tv_usec;
+  //timeout = settimer(rtt);
+
+  //printf("Receiver IP(%s) %d bytes: rtt=%f ms %s\n", inet_ntoa(dst.sin_addr), nr, rttms, recvpck.message);
+  printf("%d bytes from %s: req=%d rtt=%.3f ms %s\n", nr, inet_ntoa(dst.sin_addr), req, rttms, recvpck.message);
+  fflush(stdout);
+
   seq_num = (seq_num+1) % 2;
   return 0;
 }
 
 int oncethru = 0;
 
-int rdt_recv(int s, struct sockaddr_in rmt) {
+int rdt_recv(int s, int req, struct sockaddr_in rmt) {
   packet_t sendpck, recvpck;
   socklen_t addr_len = sizeof(struct sockaddr_in);
   unsigned char message[MAX_REQ];
+  struct timeval t1, t2;
   int nr, ns, msg_size, next = 0;
+  float rtt, rttms;
+
   do {
     do {
-      nr = recvfrom(s, (void *)&recvpck, sizeof(packet_t), 0, (struct sockaddr *)&rmt, &addr_len);
+      gettimeofday(&t1, NULL);
+      nr = recvfrom(s, (void *)&recvpck, sizeof(packet_t), MSG_WAITALL, (struct sockaddr *)&rmt, &addr_len);
       if (!corrupt(recvpck.message, recvpck.checksum) && recvpck.seqnum == oncethru) {
         next = 1;
       }
     } while (!next);
-
-    printf("Sender IP(%s): %d bytes: %s\n", inet_ntoa(rmt.sin_addr), nr, recvpck.message);
-  	fflush(stdout);
 
     if (oncethru == 0) strcpy(message, "ACK0");
     else strcpy(message, "ACK1");
     msg_size = sizeof(message);
 
     sendpck = make_packet(message, msg_size, oncethru);
-    ns = sendto(s, (void *)&sendpck, sizeof(packet_t), 0, (struct sockaddr *)&rmt, sizeof(struct sockaddr_in));
+    ns = sendto(s, (void *)&sendpck, sizeof(packet_t), MSG_CONFIRM, (struct sockaddr *)&rmt, sizeof(struct sockaddr_in));
   } while (!next);
+
+  //usleep(50000); // 50 ms
+  gettimeofday(&t2, NULL);
+  rtt = time_diff(&t1, &t2);
+  rttms = (t2.tv_sec - t1.tv_sec) * 1000000 + t2.tv_usec - t1.tv_usec;
+
+  //printf("Sender IP(%s) %d bytes: rtt=%f ms %s\n", inet_ntoa(rmt.sin_addr), nr, rttms, recvpck.message);
+  printf("%d bytes from %s: req=%d rtt=%.3f ms %s\n", nr, inet_ntoa(rmt.sin_addr), req, rttms, recvpck.message);
+  fflush(stdout);
+
   oncethru = (oncethru+1) % 2;
   return 0;
 }
-
