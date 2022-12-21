@@ -3,7 +3,7 @@
 
 int main(int argc, char **argv) {
 
-  if (argc != 2) {
+  if (argc != 3) {
     printf("%s <porta>\n", argv[0]);
     return 0;
   }
@@ -16,25 +16,24 @@ int main(int argc, char **argv) {
 
   struct sockaddr_in addr;
   bzero(&addr, sizeof(addr));
-  addr.sin_port = htons(atoi(argv[1]));
+  addr.sin_port = htons(atoi(argv[2]));
   addr.sin_family = AF_INET;
 
-  if (inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr) < 0) {
+  if (inet_pton(AF_INET, argv[1], &addr.sin_addr) < 0) {
     perror("inet_pton()");
     return -1;
   }
 
-  int ns, pck_recv = 0;
-  unsigned char reqmsg[MAX_RES] = {"Requisitando pacote"};
-
-  // Enviando requisição //
-  ns = sendto(s, reqmsg, MAX_RES, MSG_CONFIRM, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
-  // Recebendo os pacotes //
-  while (pck_recv < PCK_NUM) {
-    rdt_recv(s, pck_recv, addr);
-    pck_recv++;
+  int msg_size, pck_send = 0;
+  while (pck_send < PCK_NUM) {
+    unsigned char message[MAX_REQ];
+    sprintf(message, "packet(%d)", pck_send);
+    msg_size = sizeof(message);
+    rdt_send(s, message, msg_size, pck_send, addr);
+    pck_send++;
   }
 
   close(s);
   return 0;
 }
+

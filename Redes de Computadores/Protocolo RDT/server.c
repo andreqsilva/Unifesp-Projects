@@ -24,31 +24,19 @@ int main(int argc, char **argv) {
     return -1;
   }
 
-
-  int cfd, nr, pck_send, msg_size;
   socklen_t addr_len;
-
   struct sockaddr_in caddr;
   addr_len = sizeof(struct sockaddr_in);
-  if (cfd < 0) {
-    perror("accept()");
-    close(s);
-    return -1;
-  }
-  cfd = s;
-  unsigned char req[MAX_RES];
-  // Esperando requisição //
-  nr = recvfrom(cfd, req, MAX_REQ, MSG_WAITALL, (struct sockaddr *)&caddr, &addr_len);
-  pck_send = 0;
-  // Enviando os pacotes //
-  while (pck_send < PCK_NUM) {
-    unsigned char message[MAX_REQ];
-    sprintf(message, "packet(%d)", pck_send);
-    msg_size = sizeof(message);
-    rdt_send(cfd, message, msg_size, pck_send, caddr);
-    pck_send++;
+
+  int pck_recv = 0;
+  while (pck_recv < PCK_NUM) {
+    // Pacote esperado recebido //
+    if ( (rdt_recv(s,  pck_recv, caddr)) ) {
+        pck_recv++;
+    }
   }
 
   close(s);
   return 0;
 }
+

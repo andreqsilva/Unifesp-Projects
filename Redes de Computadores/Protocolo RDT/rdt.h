@@ -17,6 +17,7 @@
 
 #define MAX_RES 1024
 #define MAX_REQ 1024
-#define PCK_NUM 100000
+#define PCK_NUM 100
 
 #endif
+
