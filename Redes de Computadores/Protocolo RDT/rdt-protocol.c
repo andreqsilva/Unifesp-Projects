@@ -8,10 +8,6 @@ struct packet_t {
 };
 typedef struct packet_t packet_t;
 
-float time_diff(struct timeval *start, struct timeval *end){
-    return ((end->tv_sec - start->tv_sec) * 1000) + (end->tv_usec - start->tv_usec) / 1000;
-}
-
 int isACK(int seqnum, int seq) {
   if (seqnum == seq) return 1;
   else return 0;
@@ -21,7 +17,6 @@ unsigned int getChecksum(unsigned char *addr, int msg_size) {
   int count = strlen(addr);
   register long sum = msg_size;
   register long checksum;
-
   while (count > 1) {
     sum += *addr++;
     count -= 1;
@@ -42,7 +37,8 @@ int corrupt(unsigned char *msg, int recvchecksum) {
   else return 1;
 }
 
-packet_t make_packet(unsigned char *msg, int msg_size, unsigned short seqnum, unsigned short ack) {
+packet_t make_packet(unsigned char *msg, int msg_size,
+                     unsigned short seqnum, unsigned short ack) {
   packet_t pck;
   bzero(&pck, sizeof(packet_t));
   pck.ack = ack;
@@ -53,8 +49,13 @@ packet_t make_packet(unsigned char *msg, int msg_size, unsigned short seqnum, un
 }
 
 float desvio = 0;
-float rtt_estimado = 20; // 20 ms
-float msec = 20;
+float rtt_estimado = 50; // 50 ms
+float msec = 100;
+
+float time_diff(struct timeval *start, struct timeval *end){
+    return ((end->tv_sec - start->tv_sec) * 1000)
+              + (end->tv_usec - start->tv_usec) / 1000;
+}
 
 float get_timeout(float rtt_estimado, float rtt_amostrado) {
   float alpha = 0.125;
@@ -96,12 +97,14 @@ int rdt_send(int s, unsigned char *msg, int msg_size, int req, struct sockaddr_i
         continue;
       }
     }
-  } while (nr < 0 || corrupt(recvpck.message, recvpck.checksum) || !isACK(recvpck.seqnum, seq_num));
+  } while (nr < 0 || corrupt(recvpck.message, recvpck.checksum)
+            || !isACK(recvpck.seqnum, seq_num));
 
   gettimeofday(&t2, NULL);
   rtt_amostrado = time_diff(&t1, &t2);
   msec = get_timeout(rtt_estimado, rtt_amostrado);
-  //printf("rtt_amostrado=%.3f, timeout=%.3f\n", rtt_amostrado, msec);
+  seq_num = (seq_num+1) % 2;
+
   printf("%d bytes from %s: req=%d rtt=%.3f ms: %s\n",
     nr,
     inet_ntoa(dst.sin_addr),
@@ -110,7 +113,6 @@ int rdt_send(int s, unsigned char *msg, int msg_size, int req, struct sockaddr_i
     recvpck.message);
   fflush(stdout);
 
-  seq_num = (seq_num+1) % 2;
   return 0;
 }
 
@@ -135,9 +137,9 @@ int rdt_recv(int s, int req, struct sockaddr_in rmt) {
 
   msg_size = sizeof(message);
   sendpck = make_packet(message, msg_size, recvpck.seqnum, 1);
-  //usleep(50 * 1000);
   ns = sendto(s, (void *)&sendpck, sizeof(packet_t), MSG_CONFIRM,
               (struct sockaddr *)&rmt, sizeof(struct sockaddr_in));
+
   gettimeofday(&t2, NULL);
   rtt_amostrado = time_diff(&t1, &t2);
 
@@ -150,11 +152,9 @@ int rdt_recv(int s, int req, struct sockaddr_in rmt) {
       rtt_amostrado,
       recvpck.message);
     fflush(stdout);
-
     oncethru = (oncethru+1) % 2;
     return 1;
   }
-
   return 0;
 }
 
