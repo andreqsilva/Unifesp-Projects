@@ -12,48 +12,55 @@
 #define MAX_LEN 256
 
 int T[NUM_ESTADOS][3] = {
-    {1, SEM_ESTADO, SEM_ESTADO},
-    {1, 1, 2},
-    {SEM_ESTADO, SEM_ESTADO, SEM_ESTADO}
-};
+	{1, SEM_ESTADO, SEM_ESTADO},
+	{1, 1, 2},
+	{SEM_ESTADO, SEM_ESTADO, SEM_ESTADO}};
 
 int avance[NUM_ESTADOS][3] = {
-    {VERDADEIRO, FALSO, FALSO},
-    {VERDADEIRO, VERDADEIRO, VERDADEIRO},
-    {FALSO, FALSO, FALSO}
-};
+	{VERDADEIRO, FALSO, FALSO},
+	{VERDADEIRO, VERDADEIRO, VERDADEIRO},
+	{FALSO, FALSO, FALSO}};
 
 int aceita[NUM_ESTADOS] = {FALSO, FALSO, VERDADEIRO};
 
-int letra(char ch) {
-    if ( (ch >= 65 && ch <= 90) || (ch >= 97 && ch <= 122) ) return VERDADEIRO;
-    return FALSO;
+int letra(char ch)
+{
+	if ((ch >= 65 && ch <= 90) || (ch >= 97 && ch <= 122))
+		return VERDADEIRO;
+	return FALSO;
 }
 
-int digito(char ch) {
-    if (ch >= 48 && ch <= 57) return VERDADEIRO;
-    return FALSO;
+int digito(char ch)
+{
+	if (ch >= 48 && ch <= 57)
+		return VERDADEIRO;
+	return FALSO;
 }
 
-char proximoChar(FILE *file) {
-    return fgetc(file);
+char proximoChar(FILE *file)
+{
+	return fgetc(file);
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
 
-    if (argc < 2) {
-        fprintf(stderr, "Uso: %s <input.txt>\n", argv[0]);
-        return EXIT_FAILURE;
-    }
+	if (argc < 2)
+	{
+		fprintf(stderr, "Uso: %s <input.txt>\n", argv[0]);
+		return EXIT_FAILURE;
+	}
 
-    FILE *input = fopen(argv[1], "r");
-    if (input == NULL) {
-        perror("Erro ao abrir arquivo de entrada.");
-        return EXIT_FAILURE;
-    }
-	
+	FILE *input = fopen(argv[1], "r");
+	if (input == NULL)
+	{
+		perror("Erro ao abrir arquivo de entrada.");
+		return EXIT_FAILURE;
+	}
+
 	FILE *output = fopen("output.txt", "w");
-	if (output == NULL) {
+	if (output == NULL)
+	{
 		perror("Erro ao abrir arquivo de saída.");
 		return EXIT_FAILURE;
 	}
@@ -62,41 +69,51 @@ int main(int argc, char **argv) {
 	char buffer[MAX_LEN];
 	int pos;
 
-	while (ch != EOF) {
+	while (ch != EOF)
+	{
 		int erro = FALSO, estado = 0;
 		pos = 0;
-		
-		if (!letra(ch)) {
+
+		if (!letra(ch))
+		{
 			fputc(ch, output);
 			erro = VERDADEIRO;
 			ch = proximoChar(input);
 		}
-		
-		while (!aceita[estado] && !erro) {
+
+		while (!aceita[estado] && !erro)
+		{
 			int tipo = OUTRO;
-			if (letra(ch)) tipo = LETRA;
-			else if (digito(ch)) tipo = DIGITO;
-						
+			if (letra(ch))
+				tipo = LETRA;
+			else if (digito(ch))
+				tipo = DIGITO;
+
 			int novoEstado = T[estado][tipo];
-	
-			if (pos < MAX_LEN - 1) {
+
+			if (pos < MAX_LEN - 1)
+			{
 				buffer[pos++] = ch;
 			}
-		
-			if (avance[estado][tipo]) ch = proximoChar(input);
+
+			if (avance[estado][tipo])
+				ch = proximoChar(input);
 			estado = novoEstado;
 		}
 
 		buffer[pos] = '\0';
-		if (aceita[estado]) {
+		if (aceita[estado])
+		{
 			fputs("ID", output);
 			fputc(buffer[pos - 1], output);
-		} else {
+		}
+		else
+		{
 			fputs(buffer, output);
-        }
+		}
 	}
 
 	fclose(output);
-    fclose(input);
-    return 0;
+	fclose(input);
+	return 0;
 }
